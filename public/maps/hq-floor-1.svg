@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <defs>
+    <style>
+      .room-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; fill: #1e40af; font-weight: 600; text-anchor: middle; }
+      .room-capacity { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #3b82f6; text-anchor: middle; }
+      .landmark-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #065f46; font-weight: 500; text-anchor: middle; }
+      .stairs-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #92400e; font-weight: 600; text-anchor: middle; }
+      .floor-title { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 18px; fill: #475569; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#f8f9fa" rx="4"/>
+
+  <!-- Floor title -->
+  <text x="20" y="30" class="floor-title">HQ — Ground Floor</text>
+
+  <!-- Corridors -->
+  <!-- Main horizontal corridor at y:350 -->
+  <rect x="100" y="335" width="800" height="30" fill="#e2e8f0" rx="4"/>
+  <!-- Vertical corridor from lobby up to main corridor -->
+  <rect x="485" y="350" width="30" height="50" fill="#e2e8f0" rx="4"/>
+  <!-- Left branch down from (200,350) to (200,520) -->
+  <rect x="185" y="350" width="30" height="170" fill="#e2e8f0" rx="4"/>
+
+  <!-- Room: Alpha (capacity 10, 150x80, centered at 200,190) -->
+  <rect x="125" y="150" width="150" height="80" fill="#dbeafe" stroke="#93c5fd" stroke-width="2" rx="6"/>
+  <text x="200" y="188" class="room-label">Alpha</text>
+  <text x="200" y="205" class="room-capacity">Capacity: 10</text>
+
+  <!-- Room: Beta (capacity 6, 120x70, centered at 800,190) -->
+  <rect x="740" y="155" width="120" height="70" fill="#dbeafe" stroke="#93c5fd" stroke-width="2" rx="6"/>
+  <text x="800" y="188" class="room-label">Beta</text>
+  <text x="800" y="205" class="room-capacity">Capacity: 6</text>
+
+  <!-- Room: Gamma (capacity 4, 100x60, centered at 200,550) -->
+  <rect x="150" y="520" width="100" height="60" fill="#dbeafe" stroke="#93c5fd" stroke-width="2" rx="6"/>
+  <text x="200" y="548" class="room-label">Gamma</text>
+  <text x="200" y="565" class="room-capacity">Capacity: 4</text>
+
+  <!-- Lobby entrance at (500,400) -->
+  <rect x="460" y="380" width="80" height="50" fill="#d1fae5" stroke="#34d399" stroke-width="2" rx="6"/>
+  <text x="500" y="403" class="landmark-label">Lobby</text>
+  <text x="500" y="418" class="landmark-label">Entrance</text>
+
+  <!-- Stairs S1 at (890,350) -->
+  <rect x="865" y="330" width="40" height="40" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="4"/>
+  <text x="885" y="347" class="stairs-label">S1</text>
+  <text x="885" y="362" class="stairs-label">&#x2B61;</text>
+</svg>

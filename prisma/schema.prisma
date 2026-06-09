@@ -1,0 +1,146 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Building {
+  id              String   @id
+  name            String
+  address         String
+  latitude        Float
+  longitude       Float
+  geofenceRadius  Int      @default(500)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  floors Floor[]
+  rooms  Room[]
+}
+
+model Floor {
+  id        String   @id
+  number    Int
+  name      String
+  buildingId String
+  mapWidth  Int      @default(1000)
+  mapHeight Int      @default(700)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  building                Building                @relation(fields: [buildingId], references: [id])
+  rooms                   Room[]
+  pathNodes               PathNode[]
+  mapAssets               MapAsset[]
+  verticalConnectorStops  VerticalConnectorStop[]
+}
+
+model MapAsset {
+  id        String   @id
+  filename  String
+  url       String
+  mimeType  String
+  floorId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  floor Floor @relation(fields: [floorId], references: [id])
+}
+
+model Room {
+  id              String   @id
+  name            String
+  capacity        Int
+  x               Float
+  y               Float
+  nearestPathNode String
+  floorId         String
+  buildingId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  floor     Floor           @relation(fields: [floorId], references: [id])
+  building  Building        @relation(fields: [buildingId], references: [id])
+  equipment RoomEquipment[]
+}
+
+model Equipment {
+  id        String   @id
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms RoomEquipment[]
+}
+
+model RoomEquipment {
+  id          Int    @id @default(autoincrement())
+  roomId      String
+  equipmentId String
+  quantity    Int    @default(1)
+
+  room      Room      @relation(fields: [roomId], references: [id])
+  equipment Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@unique([roomId, equipmentId])
+}
+
+model PathNode {
+  id        String   @id
+  x         Float
+  y         Float
+  label     String?
+  floorId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  floor                   Floor                   @relation(fields: [floorId], references: [id])
+  edgesFrom               PathEdge[]              @relation("EdgeFrom")
+  edgesTo                 PathEdge[]              @relation("EdgeTo")
+  verticalConnectorStops  VerticalConnectorStop[]
+}
+
+model PathEdge {
+  id         String   @id
+  fromNodeId String
+  toNodeId   String
+  weight     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fromNode PathNode @relation("EdgeFrom", fields: [fromNodeId], references: [id])
+  toNode   PathNode @relation("EdgeTo", fields: [toNodeId], references: [id])
+}
+
+model VerticalConnector {
+  id        String   @id
+  name      String
+  type      String   @default("stairs")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stops VerticalConnectorStop[]
+}
+
+model VerticalConnectorStop {
+  id          String   @id
+  connectorId String
+  floorId     String
+  pathNodeId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  connector VerticalConnector @relation(fields: [connectorId], references: [id])
+  floor     Floor             @relation(fields: [floorId], references: [id])
+  pathNode  PathNode          @relation(fields: [pathNodeId], references: [id])
+
+  @@unique([connectorId, floorId])
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <defs>
+    <style>
+      .room-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; fill: #1e40af; font-weight: 600; text-anchor: middle; }
+      .room-capacity { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #3b82f6; text-anchor: middle; }
+      .stairs-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #92400e; font-weight: 600; text-anchor: middle; }
+      .floor-title { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 18px; fill: #475569; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="700" fill="#f8f9fa" rx="4"/>
+
+  <!-- Floor title -->
+  <text x="20" y="30" class="floor-title">West Campus — Second Floor</text>
+
+  <!-- Corridors -->
+  <!-- Main horizontal corridor at y:350 -->
+  <rect x="100" y="335" width="800" height="30" fill="#e2e8f0" rx="4"/>
+
+  <!-- Room: Luna (capacity 10, ~150x80, centered at 800,190) -->
+  <rect x="725" y="150" width="150" height="80" fill="#dbeafe" stroke="#93c5fd" stroke-width="2" rx="6"/>
+  <text x="800" y="188" class="room-label">Luna</text>
+  <text x="800" y="205" class="room-capacity">Capacity: 10</text>
+
+  <!-- Stairs W1 at (800,350) -->
+  <rect x="775" y="330" width="40" height="40" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="4"/>
+  <text x="795" y="347" class="stairs-label">W1</text>
+  <text x="795" y="362" class="stairs-label">&#x2B61;</text>
+</svg>

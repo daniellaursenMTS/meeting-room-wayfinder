@@ -1,65 +1,343 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import AppShell from '@/components/AppShell';
+import BuildingSelector from '@/components/BuildingSelector';
+import FloorSelector from '@/components/FloorSelector';
+import MapView from '@/components/MapView';
+import SearchView from '@/components/SearchView';
+import RoutePanel from '@/components/RoutePanel';
+
+// ---------- Types ----------
+
+interface Building {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  geofenceRadius: number;
+}
+
+interface Floor {
+  id: string;
+  number: number;
+  name: string;
+  buildingId: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  capacity: number;
+  x: number;
+  y: number;
+  nearestPathNode: string;
+  building: { id: string; name: string };
+  floor: { id: string; number: number; name: string };
+  equipment: Array<{ name: string; quantity: number }>;
+}
+
+interface CurrentPosition {
+  nodeId: string;
+  x: number;
+  y: number;
+}
+
+interface RouteResult {
+  found: boolean;
+  totalWeight?: number;
+  destination?: {
+    roomId: string;
+    roomName: string;
+    floorName: string;
+    floorNumber: number;
+    buildingName: string;
+  };
+  segments?: Array<{
+    floorId: string;
+    floorNumber: number;
+    floorName: string;
+    nodeIds: string[];
+    coordinates: Array<{ x: number; y: number }>;
+  }>;
+  instructions?: string[];
+  message?: string;
+}
+
+// ---------- localStorage helpers ----------
+
+const LS_BUILDING_KEY = 'wayfinder_buildingId';
+const LS_FLOOR_KEY = 'wayfinder_floorId';
+
+function loadFromStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function saveToStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
+// Module-level variable for pending floor restoration
+let pendingFloorIdRef: string | null = null;
+
+// ---------- Main Page ----------
 
 export default function Home() {
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
+  const [activeTab, setActiveTab] = useState<'map' | 'search'>('map');
+  const [currentPosition, setCurrentPosition] = useState<CurrentPosition | null>(null);
+  const [destination, setDestination] = useState<Room | null>(null);
+  const [route, setRoute] = useState<RouteResult | null>(null);
+  const [showBuildingSelector, setShowBuildingSelector] = useState(false);
+  const [showFloorSelector, setShowFloorSelector] = useState(false);
+  const [suggestedBuilding, setSuggestedBuilding] = useState<Building | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  // Fetch all buildings on mount
+  useEffect(() => {
+    fetch('/api/buildings')
+      .then((r) => r.json())
+      .then((data) => {
+        setBuildings(data);
+        return data as Building[];
+      })
+      .then((allBuildings) => {
+        // Try restoring from localStorage
+        const savedBuildingId = loadFromStorage(LS_BUILDING_KEY);
+        const savedFloorId = loadFromStorage(LS_FLOOR_KEY);
+        const savedBuilding = savedBuildingId
+          ? allBuildings.find((b) => b.id === savedBuildingId) ?? null
+          : null;
+
+        if (savedBuilding) {
+          setSelectedBuilding(savedBuilding);
+          // Floors will be loaded via the building-change effect
+          if (savedFloorId) {
+            // We'll restore the floor after floors are loaded
+            pendingFloorIdRef = savedFloorId;
+          }
+        }
+
+        // Try geolocation regardless
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              fetch(
+                `/api/buildings/nearby?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`
+              )
+                .then((r) => r.json())
+                .then((nearby) => {
+                  if (Array.isArray(nearby) && nearby.length > 0) {
+                    setSuggestedBuilding(nearby[0]);
+                    if (!savedBuilding) {
+                      // Show building selector with suggestion
+                      setShowBuildingSelector(true);
+                    }
+                  } else if (!savedBuilding) {
+                    setShowBuildingSelector(true);
+                  }
+                  setInitialized(true);
+                })
+                .catch(() => {
+                  if (!savedBuilding) setShowBuildingSelector(true);
+                  setInitialized(true);
+                });
+            },
+            () => {
+              // Geolocation denied/failed
+              if (!savedBuilding) setShowBuildingSelector(true);
+              setInitialized(true);
+            },
+            { timeout: 5000 }
+          );
+        } else {
+          if (!savedBuilding) setShowBuildingSelector(true);
+          setInitialized(true);
+        }
+      })
+      .catch(() => {
+        setShowBuildingSelector(true);
+        setInitialized(true);
+      });
+  }, []);
+
+  // Load floors when building changes
+  useEffect(() => {
+    if (!selectedBuilding) {
+      setFloors([]);
+      setSelectedFloor(null);
+      return;
+    }
+
+    fetch(`/api/buildings/${selectedBuilding.id}/floors`)
+      .then((r) => r.json())
+      .then((data: Floor[]) => {
+        setFloors(data);
+
+        // Try to restore pending floor from localStorage
+        if (pendingFloorIdRef) {
+          const pendingId = pendingFloorIdRef;
+          pendingFloorIdRef = null;
+          const restored = data.find((f) => f.id === pendingId);
+          if (restored) {
+            setSelectedFloor(restored);
+            return;
+          }
+        }
+
+        // Default to first floor if none selected
+        if (data.length > 0 && !selectedFloor) {
+          setSelectedFloor(data[0]);
+        }
+      })
+      .catch(() => {
+        setFloors([]);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBuilding]);
+
+  // Persist selections to localStorage
+  useEffect(() => {
+    if (selectedBuilding) saveToStorage(LS_BUILDING_KEY, selectedBuilding.id);
+  }, [selectedBuilding]);
+
+  useEffect(() => {
+    if (selectedFloor) saveToStorage(LS_FLOOR_KEY, selectedFloor.id);
+  }, [selectedFloor]);
+
+  // Clear position/route when floor changes
+  useEffect(() => {
+    setCurrentPosition(null);
+    setRoute(null);
+  }, [selectedFloor]);
+
+  // ---------- Handlers ----------
+
+  const handleSelectBuilding = useCallback((building: Building) => {
+    setSelectedBuilding(building);
+    setSelectedFloor(null);
+    setCurrentPosition(null);
+    setDestination(null);
+    setRoute(null);
+    setShowBuildingSelector(false);
+  }, []);
+
+  const handleSelectFloor = useCallback((floor: Floor) => {
+    setSelectedFloor(floor);
+    setShowFloorSelector(false);
+  }, []);
+
+  const handleSelectRoom = useCallback(
+    (room: Room) => {
+      setDestination(room);
+      setActiveTab('map');
+
+      // If the room is on a different floor, switch to it
+      if (room.floor.id !== selectedFloor?.id) {
+        const targetFloor = floors.find((f) => f.id === room.floor.id);
+        if (targetFloor) {
+          setSelectedFloor(targetFloor);
+          // Clear position since we're changing floors
+          setCurrentPosition(null);
+          setRoute(null);
+        }
+      }
+    },
+    [selectedFloor, floors]
+  );
+
+  const handleSetPosition = useCallback((pos: CurrentPosition) => {
+    setCurrentPosition(pos);
+  }, []);
+
+  const handleRouteCalculated = useCallback((result: RouteResult | null) => {
+    setRoute(result);
+  }, []);
+
+  const handleClearRoute = useCallback(() => {
+    setRoute(null);
+    setDestination(null);
+  }, []);
+
+  // ---------- Render ----------
+
+  // Show a loading spinner until initialized
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white max-w-lg mx-auto">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-500 mt-3">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="h-screen bg-gray-50">
+      <AppShell
+        selectedBuilding={selectedBuilding}
+        selectedFloor={selectedFloor}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onBuildingSelectorOpen={() => setShowBuildingSelector(true)}
+        onFloorSelectorOpen={() => setShowFloorSelector(true)}
+      >
+        {activeTab === 'map' ? (
+          <MapView
+            selectedFloor={selectedFloor}
+            currentPosition={currentPosition}
+            destination={destination}
+            route={route}
+            onSetPosition={handleSetPosition}
+            onRouteCalculated={handleRouteCalculated}
+          />
+        ) : (
+          <SearchView
+            buildings={buildings}
+            floors={floors}
+            selectedBuilding={selectedBuilding}
+            selectedFloor={selectedFloor}
+            onSelectRoom={handleSelectRoom}
+          />
+        )}
+
+        {/* Route panel overlay on map tab */}
+        {activeTab === 'map' && route && (
+          <RoutePanel route={route} onClearRoute={handleClearRoute} />
+        )}
+      </AppShell>
+
+      {/* Bottom sheet overlays */}
+      {showBuildingSelector && (
+        <BuildingSelector
+          buildings={buildings}
+          suggestedBuilding={suggestedBuilding}
+          onSelect={handleSelectBuilding}
+          onClose={() => setShowBuildingSelector(false)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+
+      {showFloorSelector && (
+        <FloorSelector
+          floors={floors}
+          selectedFloor={selectedFloor}
+          onSelect={handleSelectFloor}
+          onClose={() => setShowFloorSelector(false)}
+        />
+      )}
     </div>
   );
 }
