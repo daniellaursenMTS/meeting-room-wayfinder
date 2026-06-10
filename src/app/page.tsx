@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppShell from '@/components/AppShell';
 import BuildingSelector from '@/components/BuildingSelector';
 import FloorSelector from '@/components/FloorSelector';
@@ -86,12 +86,10 @@ function saveToStorage(key: string, value: string) {
   }
 }
 
-// Module-level variable for pending floor restoration
-let pendingFloorIdRef: string | null = null;
-
 // ---------- Main Page ----------
 
 export default function Home() {
+  const pendingFloorIdRef = useRef<string | null>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
@@ -126,7 +124,7 @@ export default function Home() {
           // Floors will be loaded via the building-change effect
           if (savedFloorId) {
             // We'll restore the floor after floors are loaded
-            pendingFloorIdRef = savedFloorId;
+            pendingFloorIdRef.current = savedFloorId;
           }
         }
 
@@ -187,9 +185,9 @@ export default function Home() {
         setFloors(data);
 
         // Try to restore pending floor from localStorage
-        if (pendingFloorIdRef) {
-          const pendingId = pendingFloorIdRef;
-          pendingFloorIdRef = null;
+        if (pendingFloorIdRef.current) {
+          const pendingId = pendingFloorIdRef.current;
+          pendingFloorIdRef.current = null;
           const restored = data.find((f) => f.id === pendingId);
           if (restored) {
             setSelectedFloor(restored);

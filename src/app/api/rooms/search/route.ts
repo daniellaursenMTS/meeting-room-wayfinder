@@ -52,35 +52,40 @@ export async function GET(request: Request) {
     }
   }
 
-  const rooms = await prisma.room.findMany({
-    where,
-    include: {
-      building: { select: { id: true, name: true } },
-      floor: { select: { id: true, number: true, name: true } },
-      equipment: {
-        include: {
-          equipment: { select: { name: true } },
+  try {
+    const rooms = await prisma.room.findMany({
+      where,
+      include: {
+        building: { select: { id: true, name: true } },
+        floor: { select: { id: true, number: true, name: true } },
+        equipment: {
+          include: {
+            equipment: { select: { name: true } },
+          },
         },
       },
-    },
-  })
+    })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = rooms.map((room: any) => ({
-    id: room.id,
-    name: room.name,
-    capacity: room.capacity,
-    x: room.x,
-    y: room.y,
-    nearestPathNode: room.nearestPathNode,
-    building: room.building,
-    floor: room.floor,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    equipment: room.equipment.map((re: any) => ({
-      name: re.equipment.name,
-      quantity: re.quantity,
-    })),
-  }))
+    const result = rooms.map((room: any) => ({
+      id: room.id,
+      name: room.name,
+      capacity: room.capacity,
+      x: room.x,
+      y: room.y,
+      nearestPathNode: room.nearestPathNode,
+      building: room.building,
+      floor: room.floor,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      equipment: room.equipment.map((re: any) => ({
+        name: re.equipment.name,
+        quantity: re.quantity,
+      })),
+    }))
 
-  return Response.json(result)
+    return Response.json(result)
+  } catch (error) {
+    console.error('Failed to search rooms:', error)
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

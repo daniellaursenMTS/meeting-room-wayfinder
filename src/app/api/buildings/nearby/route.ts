@@ -49,15 +49,20 @@ export async function GET(request: Request) {
     )
   }
 
-  const buildings = await prisma.building.findMany()
+  try {
+    const buildings = await prisma.building.findMany()
 
-  const nearby = buildings
-    .map((building: { latitude: number; longitude: number; geofenceRadius: number }) => {
-      const distance = haversineDistance(lat, lng, building.latitude, building.longitude)
-      return { ...building, distance }
-    })
-    .filter((b: { distance: number; geofenceRadius: number }) => b.distance <= b.geofenceRadius)
-    .sort((a: { distance: number }, b: { distance: number }) => a.distance - b.distance)
+    const nearby = buildings
+      .map((building: { latitude: number; longitude: number; geofenceRadius: number }) => {
+        const distance = haversineDistance(lat, lng, building.latitude, building.longitude)
+        return { ...building, distance }
+      })
+      .filter((b: { distance: number; geofenceRadius: number }) => b.distance <= b.geofenceRadius)
+      .sort((a: { distance: number }, b: { distance: number }) => a.distance - b.distance)
 
-  return Response.json(nearby)
+    return Response.json(nearby)
+  } catch (error) {
+    console.error('Failed to fetch nearby buildings:', error)
+    return Response.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
